@@ -92,6 +92,17 @@ In this assignment you will have to discuss a few important questions (given the
 
 Part 1 - Basic description of language development
 - Describe your sample (n, age, gender, clinical and cognitive features of the two groups) and critically assess whether the groups (ASD and TD) are balanced
+```{r}
+library(pacman)
+p_load(tidyverse,lmerTest,MuMIn,sjPlot)
+
+df <- read_csv("cleanedData.csv")
+
+# Describe sample
+
+
+```
+
 - Describe linguistic development (in terms of MLU over time) in TD and ASD children (as a function of group). 
 - Describe how parental use of language (in terms of MLU) changes over time. What do you think is going on?
 - Include individual differences in your model of language development (in children). Identify the best model.
