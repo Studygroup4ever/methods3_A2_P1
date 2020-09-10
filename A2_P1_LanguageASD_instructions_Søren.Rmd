@@ -76,9 +76,26 @@ Load necessary libraries : what will you need?
 
 ```{r Load Libraries, include = FALSE}
 library(pacman)
-p_load(tidyverse, lme4, dplyr)
+p_load(tidyverse, lme4, dplyr, ggplot2, reshape2)
 
 ```
+
+```{r}
+# Functions
+# Use correlation between variables as distance
+reorder_cormat <- function(cormat) {
+  dd <- as.dist((1 - cormat) / 2)
+  hc <- hclust(dd)
+  cormat <- cormat[hc$order, hc$order]
+}
+
+# Get upper triangle of the correlation matrix
+get_upper_tri <- function(cormat) {
+  cormat[lower.tri(cormat)] <- NA
+  return(cormat)
+}
+```
+
 
 ### Define your working directory and load the data
 If you created a project for this class and opened this Rmd file from within that project, your working directory is your project directory.
@@ -130,23 +147,111 @@ Remember to plot the data first and then to run a statistical test.
 - Which variable(s) should be included as random factors?
 
 ```{r}
-cor.test(df$Socialization, df)
+ggplot(df, aes(x = Diagnosis, y = CHI_MLU, color = Age)) + 
+  geom_point() +
+  theme_minimal()
+
+ggplot(df, aes(x = Age, y = CHI_MLU, color = Diagnosis)) +
+  geom_smooth(method = lm) +
+  geom_point() +
+  theme_minimal()
+
+ggplot(df, aes(x = VISIT, y = CHI_MLU, color = Diagnosis)) +
+  geom_smooth(method = lm) +
+  geom_point() +
+  theme_minimal()
+
+ggplot(df, aes(x = Socialization, y = CHI_MLU, color = Diagnosis)) + 
+  geom_smooth(method = lm) +
+  geom_point() +
+  theme_minimal()
+
+ggplot(df, aes(x = MOT_MLU, y = CHI_MLU, color = Diagnosis)) + 
+  geom_smooth(method = lm) +
+  geom_point() +
+  theme_minimal()
+
 ```
 
+```{r}
+# Preparing heatmap
+sub_df <- df %>% select(-c(ID, ADOS, Socialization, nvIQ, vIQ))
+
+sub_df <- na.omit(sub_df)
+
+sub_df$Diagnosis <- as.factor(sub_df$Diagnosis)
+sub_df$Diagnosis <- as.numeric(sub_df$Diagnosis)
+
+sub_df$Ethnicity <- as.factor(sub_df$Ethnicity)
+sub_df$Ethnicity <- as.numeric(sub_df$Ethnicity)
+
+sub_df$Gender <- as.factor(sub_df$Gender)
+sub_df$Gender <- as.numeric(sub_df$Gender)
+
+```
+
+```{r}
+#Building heatmap of correlations
+cormat <- round(cor(sub_df),2)
+cormat <- reorder_cormat(cormat)
+upper_tri <- get_upper_tri(cormat)
+
+melted_cormat <- melt(upper_tri, na.rm = TRUE)
+
+ggplot(melted_cormat, aes(Var2, Var1, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(
+    low = "blue",
+    high = "red",
+    mid = "white",
+    midpoint = 0,
+    limit = c(-1, 1),
+    space = "Lab",
+    name = "Pearson\nCorrelation"
+  ) +
+  theme_minimal() + # minimal theme
+  theme(axis.text.x = element_text(
+    angle = 45,
+    vjust = 1,
+    size = 10,
+    hjust = 1
+  )) +
+  coord_fixed() + geom_text(aes(Var2, Var1, label = value),
+                            color = "black",
+                            size = 2) +
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    axis.ticks = element_blank(),
+    legend.justification = c(1, 0),
+    legend.position = c(0.6, 0.7),
+    legend.direction = "horizontal"
+  ) +
+  guides(fill = guide_colorbar(
+    barwidth = 7,
+    barheight = 1,
+    title.position = "top",
+    title.hjust = 0.5
+  ))
+
+```
 
 ```{r ex2, include = FALSE}
 m1 <- lmer(CHI_MLU ~ 
              Diagnosis + 
              Age + 
-             (1|ID) + 
-             (1|MOT_MLU) ,
+             (1|ID) +
+             (1|Gender),
            df, REML = F)
 
 m2 <- lmer(CHI_MLU ~ 
              1 + 
              Age + 
-             (1|ID) + 
-             (1|MOT_MLU) ,
+             (1|ID) +
+             (1|Gender),
            df, REML = F)
 
 summary(m1)
