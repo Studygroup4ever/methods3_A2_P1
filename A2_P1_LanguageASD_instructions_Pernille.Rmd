@@ -9,6 +9,80 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(include = FALSE)
 ```
+## NOTES:
+
+Plot: Fitted values (predicted by model) against actual values 
+broom.mixed
+sjPlot or predict()
+
+
+Get marginal (exp by fixed) + conditional (how much variance is exp with random effects also)
+r.squaredGlMM() from MuMin
+
+# TIPS
+Use read_csv write_csv - it is 10 x faster than read.csv
+Use tidyverse. Make code readable for both of us - no lon lines. 
+# get overview
+Readable - command space A - will space it out neatly
+
+Readable things:
+```{r}
+#demo_train = demo_train %>%
+#  rename(SUBJ = Child.ID,
+#         VISIT = Visit)
+
+#Consider making a function:
+extractor <- function(df){
+  
+df <- df %>%
+  mutate_at("VISIT", str_extract, "\\d") %>%
+  mutate(VISIT = as.integer(VISIT))
+  
+}
+
+#Use the function: 
+demo_train <- extractor(demo_train)
+LU_train <- extractor(LU_train)
+token_train <- extractor(token_train)
+
+#Check that we have the same type: 
+compare_df_cols(demo_train, LU_train, token_train) %>%
+  tail()
+
+# WHEN MERGING DATAFRAMES, DO ALL = TRUE
+#Example solution 1 (although there should be something better): 
+merged_data <- merge(demo_train, LU_train, all = T)
+merged_data <- merge(merged_data, token_train, all = T) 
+
+# SOLUTION AGAIN WITH FUNCTION
+# example solution: 
+selector2 <- function(df){
+  
+  df <- df %>%
+    select(one_of(c("SUBJ", "VISIT", "Diagnosis", "Ethnicity",
+           "Gender", "Age", "ADOS", "MullenRaw", "ExpressiveLangRaw",
+           "Socialization", "MOT_MLU", "CHI_MLU", "types_MOT",
+           "types_CHI", "tokens_MOT", "tokens_CHI"))) 
+
+}
+
+# run the function: 
+demo_train <- selector2(demo_train)
+
+
+# example solution for only having visit 1 so that we can try later and predict how it will be behave.
+new_data <- merged_data %>%
+  filter(VISIT == 1) %>%
+  select(SUBJ,
+         ADOS1 = ADOS, #new_name = old_name. 
+         verbalIQ = ExpressiveLangRaw,
+         nonVerbalIQ = MullenRaw,
+         Socialization1 = Socialization)
+  
+data <- merge(new_data, merged_data, all = T)
+
+```
+
 
 # Assignment 2
 
