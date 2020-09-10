@@ -253,7 +253,7 @@ data_sub <- df %>%
       rowid_to_column("ID") # Creating a new column with a number for each row, which in this case equals each participant
 
 # Removing the existing clinical variables from the dataframe "df"
-df <- subset(df, select = -c(ADOS, vIQ, nvIQ, Socialization))
+#df <- subset(df, select = -c(ADOS, vIQ, nvIQ, Socialization))
 
 # Merging the two dataframes by the "SUBJ" variable
 df <- merge(data_sub, df, by = "SUBJ")
