@@ -80,22 +80,6 @@ p_load(tidyverse, lme4, dplyr, ggplot2, reshape2)
 
 ```
 
-```{r}
-# Functions
-# Use correlation between variables as distance
-reorder_cormat <- function(cormat) {
-  dd <- as.dist((1 - cormat) / 2)
-  hc <- hclust(dd)
-  cormat <- cormat[hc$order, hc$order]
-}
-
-# Get upper triangle of the correlation matrix
-get_upper_tri <- function(cormat) {
-  cormat[lower.tri(cormat)] <- NA
-  return(cormat)
-}
-```
-
 
 ### Define your working directory and load the data
 If you created a project for this class and opened this Rmd file from within that project, your working directory is your project directory.
@@ -172,7 +156,21 @@ ggplot(df, aes(x = MOT_MLU, y = CHI_MLU, color = Diagnosis)) +
   theme_minimal()
 
 ```
+```{r}
+# Functions
+# Use correlation between variables as distance
+reorder_cormat <- function(cormat) {
+  dd <- as.dist((1 - cormat) / 2)
+  hc <- hclust(dd)
+  cormat <- cormat[hc$order, hc$order]
+}
 
+# Get upper triangle of the correlation matrix
+get_upper_tri <- function(cormat) {
+  cormat[lower.tri(cormat)] <- NA
+  return(cormat)
+}
+```
 ```{r}
 # Preparing heatmap
 sub_df <- df %>% select(-c(ID, ADOS, Socialization, nvIQ, vIQ))
