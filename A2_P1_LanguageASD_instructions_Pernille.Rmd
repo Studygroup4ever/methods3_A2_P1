@@ -92,20 +92,54 @@ In this assignment you will have to discuss a few important questions (given the
 
 Part 1 - Basic description of language development
 - Describe your sample (n, age, gender, clinical and cognitive features of the two groups) and critically assess whether the groups (ASD and TD) are balanced
-```{r}
-library(pacman)
-p_load(tidyverse,lmerTest,MuMIn,sjPlot)
-
-df <- read_csv("cleanedData.csv")
-
-# Describe sample
-
-
-```
 
 - Describe linguistic development (in terms of MLU over time) in TD and ASD children (as a function of group). 
+```{r}
+alldata <- read_csv("cleanedData.csv")
+
+# mean age by group for VISIT 1
+alldata %>% 
+  group_by(Diagnosis) %>% 
+  filter(VISIT == 1) %>% 
+  summarise(mean(Age, na.rm = T))
+
+# Number of observations of each gender
+alldata %>% 
+  count(Gender)
+
+            #1 = 310, 2 = 62
+
+# Number of each diagnosis
+alldata %>% 
+  count(Diagnosis)
+
+            #A = 176, B = 196
+
+# n
+nrow(alldata) #total 372 participants
+
+# Mean socialization per diagnosis
+alldata %>% 
+  group_by(Diagnosis) %>% summarise( mean(Socialization))
+
+# MLU as a function of Visit (diagnosis colored)
+ggplot(alldata, aes(y = CHI_MLU, x = VISIT, color = Diagnosis),na.rm = TRUE)+
+  geom_point()+
+  geom_smooth(stat = "smooth", position = "identity", method = lm)
+```
+
 - Describe how parental use of language (in terms of MLU) changes over time. What do you think is going on?
+```{r}
+# Parental use of language as a function of VISIT
+ggplot(alldata, aes(y = MOT_MLU, x = VISIT),na.rm = TRUE)+
+  geom_point()+
+  geom_smooth(stat = "smooth", position = "identity", method = lm)
+```
+
 - Include individual differences in your model of language development (in children). Identify the best model.
+```{r}
+m <- lmer()
+```
 
 Part 2 - Model comparison
 - Discuss the differences in performance of your model in training and testing data
@@ -160,6 +194,8 @@ Load necessary libraries : what will you need?
 - e.g. something to plot with
 
 ```{r Load Libraries, include = FALSE}
+library(pacman)
+p_load(tidyverse,lmerTest,MuMIn,sjPlot,lme4)
 
 ```
 
@@ -173,7 +209,7 @@ If you opened this Rmd file outside of a project, you will need some code to fin
 - Load the data you saved last time (use read_csv(fileName))
 
 ```{r Load Data, include = FALSE}
-
+alldata <- read_csv("cleanedData.csv")
 ```
 
 ### Characterize the participants (Exercise 1)
@@ -182,10 +218,45 @@ Identify relevant variables: participants demographic characteristics, diagnosis
 
 Make sure the variables are in the right format.
 
-Describe the characteristics of the two groups of participants and whether the two groups are well matched.
+Describe the characteristics of the two groups (ASD/TD) participants and whether the two groups are well matched.
 
 ```{r descriptive stats, include = FALSE}
 
+# Making a grouped df
+df_grp1 <- alldata %>% 
+  group_by(Diagnosis) %>% 
+  filter(VISIT == 1)
+
+# Diagnosis as a factor, so I can see the levels
+alldata$Diagnosis <- as.factor(alldata$Diagnosis)
+levels(alldata$Diagnosis)
+
+alldata %>% count(Diagnosis) #ASD = 176, TD = 196
+
+# Mean age by group for VISIT 1
+summarise(df_grp, "Mean Age Visit 1" = mean(Age, na.rm = T)) #ASD = 33, TD = 20.4
+
+# Number of observations of each gender
+df_grp %>% 
+  count(Gender) #ASD F = 5, ASD M = 26, TD F = 6, TD M = 29
+
+# Number of each diagnosis
+df_grp %>% 
+  count(Diagnosis) #ASD = 31, TD = 35
+
+# n
+nrow(df_grp) #total 66 participants
+
+# Mean socialization per diagnosis (group by ID)
+summarise(df_grp, "Mean Socialization Visit 1" = mean(Socialization, na.rm = T)) #ASD = 77.8, TD = 100
+
+# -----------
+
+
+# MLU as a function of Visit (diagnosis colored)
+ggplot(alldata, aes(y = CHI_MLU, x = VISIT, color = Diagnosis),na.rm = TRUE)+
+  geom_point()+
+  geom_smooth(stat = "smooth", position = "identity", method = lm)
 ```
 
 The sample included mostly young (<20) white males ...
