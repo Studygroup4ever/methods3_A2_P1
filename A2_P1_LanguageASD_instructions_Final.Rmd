@@ -1,0 +1,392 @@
+---
+title: "Assignment 2 - Language Development in ASD - Part 1 - Explaining development"
+author: "[YOUR NAME]"
+date: "[DATE]"
+output: html_document
+---
+    
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(include = FALSE)
+```
+
+# Assignment 2
+
+In this assignment you will have to discuss a few important questions (given the data you have). More details below. The assignment submitted to the teachers consists of:
+- a report answering and discussing the questions (so we can assess your conceptual understanding and ability to explain and critically reflect)
+- a link to a git repository with all the code (so we can assess your code)
+
+Part 1 - Basic description of language development
+- Describe your sample (n, age, gender, clinical and cognitive features of the two groups) and critically assess whether the groups (ASD and TD) are balanced
+- Describe linguistic development (in terms of MLU over time) in TD and ASD children (as a function of group). 
+- Describe how parental use of language (in terms of MLU) changes over time. What do you think is going on?
+- Include individual differences in your model of language development (in children). Identify the best model.
+
+Part 2 - Model comparison
+- Discuss the differences in performance of your model in training and testing data
+- Which individual differences should be included in a model that maximizes your ability to explain/predict new data?
+- Predict a new kid's performance (Bernie) and discuss it against expected performance of the two groups
+
+Part 3 - Simulations to plan a new study
+- Report and discuss a power analyses identifying how many new kids you would need to replicate the results
+
+The following involves only Part 1.
+
+## Learning objectives
+
+- Summarize and report data and models
+- Critically apply mixed effects (or multilevel) models
+- Explore the issues involved in feature selection
+
+
+# Quick recap
+Autism Spectrum Disorder is often related to language impairment. However, this phenomenon has not been empirically traced in detail:
+i) relying on actual naturalistic language production,  ii) over extended periods of time.
+
+We therefore videotaped circa 30 kids with ASD and circa 30 comparison kids (matched by linguistic performance at visit 1) for ca. 30 minutes of naturalistic interactions with a parent. We repeated the data collection 6 times per kid, with 4 months between each visit. We transcribed the data and counted: 
+i) the amount of words that each kid uses in each video. Same for the parent.
+ii) the amount of unique words that each kid uses in each video. Same for the parent.
+iii) the amount of morphemes per utterance (Mean Length of Utterance) displayed by each child in each video. Same for the parent. 
+
+This data is in the file you prepared in the previous class. 
+
+NB. A few children have been excluded from your datasets. We will be using them next week to evaluate how good your models are in assessing the linguistic development in new participants.
+
+This RMarkdown file includes 
+1) questions (see above). Questions have to be answered/discussed in a separate document that you have to directly submit on Blackboard.
+2) A break down of the questions into a guided template full of hints for writing the code to solve the exercises. Fill in the code and the paragraphs as required. Then report your results in the doc for the teachers.
+
+REMEMBER that you will have to have a github repository for the code and submit the answers to Blackboard without code (but a link to your github/gitlab repository). This way we can check your code, but you are also forced to figure out how to report your analyses :-)
+
+Before we get going, here is a reminder of the issues you will have to discuss in your report:
+
+1- Describe your sample (n, age, gender, clinical and cognitive features of the two groups) and critically assess whether the groups (ASD and TD) are balanced
+2- Describe linguistic development (in terms of MLU over time) in TD and ASD children (as a function of group). 
+3- Describe how parental use of language (in terms of MLU) changes over time. What do you think is going on?
+4- Include individual differences in your model of language development (in children). Identify the best model.
+
+# Let's go
+
+### Loading the relevant libraries
+
+Load necessary libraries : what will you need?
+- e.g. something to deal with the data
+- e.g. mixed effects models
+- e.g. something to plot with
+
+```{r Load Libraries, include = FALSE}
+library(pacman)
+p_load(tidyverse,lmerTest,MuMIn,sjPlot,lme4,reshape2, MuMIn,nlme, broom, ggplot2)
+```
+
+### Define your working directory and load the data
+If you created a project for this class and opened this Rmd file from within that project, your working directory is your project directory.
+
+If you opened this Rmd file outside of a project, you will need some code to find the data:
+- Create a new variable called locpath (localpath)
+- Set it to be equal to your working directory
+- Move to that directory (setwd(locpath))
+- Load the data you saved last time (use read_csv(fileName))
+
+```{r Load Data, include = FALSE}
+alldata <- read_csv("cleanedData.csv")
+```
+
+### Characterize the participants (Exercise 1)
+
+Identify relevant variables: participants demographic characteristics, diagnosis, ADOS, Verbal IQ (expressive lang raw), Non Verbal (mullenraw) IQ, Socialization, Visit, Number of words used, Number of unique words used, mean length of utterance in both child and parents.
+
+Make sure the variables are in the right format.
+
+Describe the characteristics of the two groups of participants and whether the two groups are well matched.
+
+```{r descriptive stats, include = FALSE}
+alldata %>% group_by(Diagnosis) %>% filter(VISIT == 1) %>% summarize(mean(Age, na.rm = T))
+
+alldata %>% filter(VISIT == 1) %>% count(Diagnosis)
+
+alldata %>% count(Diagnosis)
+
+176/31
+196/35
+
+alldata %>% filter(VISIT == 1) %>% count(Gender)
+
+alldata %>% filter(VISIT == 1) %>% count(Ethnicity)
+
+alldata %>% group_by(Diagnosis) %>% filter(VISIT == 1) %>% count(Ethnicity)
+
+```
+
+Mean age: ASD = 33.03903 months and TD = 20.38294 months
+
+The study included 31 children with ASD and 35 children with TD - both groups showing up to approximately 5.6 meetings.
+
+The sample included mostly young (<20) white males ...
+
+[REPORT THE RESULTS]
+
+## Let's test hypothesis 1: Children with ASD display a language impairment  (Exercise 2)
+
+### Hypothesis: The child's MLU changes: i) over time, ii) according to diagnosis
+
+Let's start with a simple mixed effects linear model
+
+Remember to plot the data first and then to run a statistical test.
+- Which variable(s) should be included as fixed factors?
+We include VISIT
+- Which variable(s) should be included as random factors?
+
+```{r ex2, include = FALSE}
+variable.names(alldata)
+
+m <- lmer(CHI_MLU ~ VISIT +
+            Diagnosis +
+            nvIQ +
+            vIQ +
+            (1 + VISIT | ID),
+          alldata,
+          REML = F)
+summary(m)
+            
+
+# model with VISIT*DIAGNOSIS
+m <- lmer(CHI_MLU ~ 
+            VISIT*Diagnosis + 
+            (1+VISIT|ID), 
+          alldata, REML = F)
+summary(m)
+r.squaredGLMM(m) #Marginal: 35,7%, Conditional: 81%
+```
+
+How would you evaluate whether the model is a good model?
+
+```{r ex2 evaluate, include = FALSE}
+# Comparing models with anova with interaction and without
+mx <- lmer(CHI_MLU ~ 
+            VISIT+Diagnosis + 
+            (1+VISIT|ID), 
+          alldata, REML = F)
+
+anova(m,mx) 
+```
+
+Not too good, right? Let's check whether a growth curve model is better.
+Remember: a growth curve model assesses whether changes in time can be described by linear, or quadratic, or cubic (or... etc.) components.
+First build the different models, then compare them to see which one is better.
+
+```{r ex2 growth curve, include = FALSE}
+mg <- lmer(CHI_MLU ~ VISIT^2 +
+             Diagnosis + 
+             (1+VISIT|ID),
+           alldata, REML = F)
+
+summary(mg)
+
+# MLU as a function of Visit (diagnosis colored)
+plot <- ggplot(alldata, 
+       aes(
+        y = CHI_MLU, 
+        x = (VISIT^2), 
+        color = Diagnosis),
+        na.rm = TRUE)+
+        geom_point()+
+        geom_smooth(stat = "smooth", position = "identity", method = lm)
+
+plot1 <- ggplot(alldata, 
+       aes(
+        y = CHI_MLU, 
+        x = (VISIT^3), 
+        color = Diagnosis),
+        na.rm = TRUE)+
+        geom_point()+
+        geom_smooth(stat = "smooth", position = "identity", method = lm)
+
+# First we fit a baseline model in which we include only the intercept.
+intercept <-gls(CHI_MLU ~ 1, 
+                data = alldata, 
+                method = "ML", 
+                na.action = na.exclude)
+# Note that we have asked R to create an object called intercept, and we have specified that Life_Satisfaction is the outcome variable and that it is predicted from only the intercept (the ‘~1’ in the function). The rest of the function specifies the data (data = restructured? Data) and how to estimate the model (method = “ML”). 
+
+# Next, we need to fit the same model, but this time allowing the intercepts to vary across contexts (in this case we want them to vary across people). As in the previous example, we use the lme() function:
+randomIntercept <-lme(CHI_MLU ~ 1, 
+                      data = alldata,
+                      random = ~1|ID, 
+                      method = "ML",  
+                      na.action = na.exclude, 
+                      control = list(opt="optim"))
+
+# In a growth curve analysis, we are primarily interested in one fixed effect: time. This vari- able in our data set is the index variable (Time), which specifies whether the life satisfaction score was recorded at baseline (0), 6 months (1), 12 months (2) or 18 months (3). We will use the update() function to retain everything from a previous model (including options such as the method, how to deal with missing cases, and the optimiza- tion method) but add things to it (R’s Souls’ Tip 19.3). We can quickly update the previous model (randomIntercept) to include Time as a predictor by executing:
+
+timeRI<-update(randomIntercept, .~. + VISIT)
+timeRI <- update(timeRI, .~. + Diagnosis)
+# This command creates a new object in R called timeRI. The first part of the parenthesis tells R which model to update (in this case we have updated randomIntercept). The remainder tells R how to update this model: .~. simply means ‘keep the previous outcome and all of the previous predictors’ and + Time means ‘add Time as a predictor’. If you want to have a look at the new model you can use summary(timeRI).
+
+# If we want slopes to vary across people as well, then we’re saying that the effect of Time is different in different people. This is a standard growth model scenario: the rate of development or growth over time differs within entities (in this case people, but it could be companies, mice, states, hospitals, schools, geographical areas, etc.). As such, we want to update the random part of the model to be random = ~Time|Person, which means that intercepts and the effect of time (~Time) vary across people (Person). We use the update() function to create a new model (called timeRS) which is identical to the previous model (timeRI) but updates the random part of the model to be random = ~Time|Person:
+timeRS<-update(timeRI, random = ~VISIT|ID)
+
+#We can add a covariance structure to the model using the update() function to create a new model (called ARModel) which is identical to the previous model (timeRS) but adds in a first-order autoregressive covariance structure:
+#ARModel<-update(timeRS, correlation = corAR1(0, form = ~VISIT|ID))
+
+# Fortunately, rather than computing new variables, R can create these new predictors ‘on the fly’. To create the quadratic term we simply specify I(Time^2) as a new predictor. ‘Time^2’ is R’s way of writing ‘time2’ (the ^ means ‘to the power of’); because arith- metic operators such as +, *, - and ^ can be used to define the form of a model (e.g., satisfaction~gender + age + age*gender) we need to enclose ‘Time^2’ within the I() func- tion so that R knows to treat it as an arithmetic operator rather than part of the model specification. The last model we looked at was called ARModel, and included the main effect of Time as a predctor. We can use update() to create a new model (timeQuadratic) that adds the quadratic term to this model:
+
+# Making it numerical
+alldata$VISIT <- as.numeric(alldata$VISIT)
+timeQuadratic<-update(timeRS, .~. + I(VISIT^2))
+summary(timeQuadratic)
+
+# SKRIVER LIGE DEN HER MODEL OP
+# First we fit a baseline model in which we include only the intercept.
+intercept <-gls(CHI_MLU ~ 1, 
+                data = alldata, 
+                method = "ML", 
+                na.action = na.exclude)
+# Next, we need to fit the same model, but this time allowing the intercepts to vary across people
+randomIntercept <-lme(CHI_MLU ~ 1, 
+                      data = alldata,
+                      random = ~1|ID, 
+                      method = "ML",  
+                      na.action = na.exclude, 
+                      control = list(opt="optim"))
+
+# Adding VISIT and VISIT^2
+timeRI<-update(randomIntercept, .~. + VISIT)
+timeRI<-update(timeRI, .~. + I(VISIT^2))
+
+# Adding Diagnosis
+timeRI <- update(timeRI, .~. + Diagnosis)
+
+# Addint random slope
+timeRS<-update(timeRI, random = ~VISIT|ID)
+
+# The final model: CHI_MLU ~ VISIT + I(VISIT^2) + Diagnosis + (1+VISIT|ID)
+summary(timeRS)
+
+
+```
+
+Exciting right? Let's check whether the model is doing an alright job at fitting the data. Plot the actual CHI_MLU data against the predictions of the model fitted(model). 
+
+```{r}
+growth <- lmer(CHI_MLU ~ 
+                 I(VISIT^2)*Diagnosis + 
+                 vIQ1 + 
+                 nvIQ1 + 
+                 (1|ID),
+               df, REML = F) #AIC 588
+summary(growth)
+
+julia <- lmer(CHI_MLU ~ 
+                 Diagnosis*VISIT +
+                 vIQ1 + 
+                 (1+VISIT|ID), 
+              df, REML = F) #AIC 515
+
+anova(growth,julia)
+```
+
+
+```{r}
+# Plot: Fitted values (predicted by model) against actual values 
+
+# making df with selected variables
+sub_df <- alldata %>% select(c(ID, CHI_MLU, VISIT, vIQ1, Diagnosis))
+
+# omit na's
+sub_df <- na.omit(sub_df)
+
+# check fitted/predict - they do the same
+sub_df$fit_CHI_MLU <- fitted(julia) #same values
+sub_df$pred_CHI_MLU <- predict(julia) #same values
+
+# make model for fun - don't know if this is allowed? lol
+model <- lm(CHI_MLU ~ pred_CHI_MLU, sub_df, REML = F)
+summary(model)
+
+# making a cool plot
+plot <- ggplot(sub_df, aes(x = CHI_MLU, y = pred_CHI_MLU)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  ggtitle("Fitted values (predicted by model) against the actual values") + 
+  ylab("Fitted (predicted) values of CHI_MLU") + 
+  xlab("Actual values of CHI_MLU")
+
+plot
+
+# making a histogram plot over the residuals between predicted and actual
+ggplot(df_nona, aes(x = diff)) +
+  geom_vline(
+    data = df_nona,
+    aes(xintercept = mean(diff) + 2.56 * sd(diff)),
+    colour = "black",
+    linetype = "dotted"
+  ) +
+  geom_vline(
+    data = df_nona,
+    aes(xintercept = mean(diff) - 2.56 * sd(diff)),
+    colour = "black",
+    linetype = "dotted"
+  ) +
+  geom_histogram(
+    aes(y = ..density..),
+    color = "darkblue",
+    fill = "lightblue",
+    binwidth = .1
+  ) +
+  stat_function(
+    fun = dnorm,
+    args = list(
+      mean = mean(df_nona$diff, na.rm = TRUE),
+      sd = sd(df_nona$diff, na.rm = TRUE)
+    ),
+    colour = "black",
+    size = 1
+  ) +
+  labs(title = "",
+       y = "Density",
+       x = "Reading Time (sec)") +
+  theme_minimal()
+
+```
+
+Now it's time to report our results.
+Remember to report:
+- the estimates for each predictor (beta estimate, standard error, p-value)
+- A plain word description of the results
+- A plot of your model's predictions (and some comments on whether the predictions are sensible)
+
+[REPORT THE RESULTS]
+Linguistic development of children MLU is affected by ... [COMPLETE]
+
+## Let's test hypothesis 2: Parents speak equally to children with ASD and TD  (Exercise 3)
+
+### Hypothesis: Parental MLU changes: i) over time, ii) according to diagnosis
+
+```{r ex3, include = FALSE}
+mpl <- lmer(MOT_MLU ~ VISIT+Diagnosis + (1+VISIT|ID), alldata, REML = F)
+mpq <- lmer(MOT_MLU ~ I(VISIT^2)+Diagnosis + (1+VISIT|ID), alldata, REML = F)
+# both significantly described the pattern of the data over time
+class(alldata$VISIT)
+summary(mpl) #VISIT 0.12
+summary(mpq) #VISIT 0.12
+
+anova(mpl, mpq)
+```
+
+Parent MLU is affected by ... but probably not ...
+[REPORT THE RESULTS]
+
+### Adding new variables (Exercise 4)
+
+Your task now is to figure out how to best describe the children linguistic trajectory. The dataset contains a bunch of additional demographic, cognitive and clinical variables (e.g.verbal and non-verbal IQ). Try them out and identify the statistical models that best describes your data (that is, the children's MLU). Describe how you selected the best model and send the code to run the model to Victor and Byurakn.
+
+
+```{r ex4, include = FALSE}
+
+```
+
+In addition to ..., the MLU of the children is also correlated with ...
+Using AIC / nested F-tests as a criterium, we compared models of increasing complexity and found that ...
+
+[REPORT THE RESULTS]
