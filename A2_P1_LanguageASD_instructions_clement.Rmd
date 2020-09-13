@@ -76,7 +76,7 @@ Load necessary libraries : what will you need?
 
 ```{r Load Libraries, include = FALSE}
 library(pacman)
-p_load(tidyverse, lme4, dplyr, MuMIn, performance, see)
+p_load(tidyverse, lme4, dplyr, MuMIn, performance, see, sjPlot)
 ```
 
 ### Define your working directory and load the data
@@ -143,19 +143,24 @@ Remember to plot the data first and then to run a statistical test.
 #Making a mixed effects model with random int for ID because it is a repeated measures design
 
 #Maximum model (with all conceivable predictors (that are not collinear))
-hyp1_model_max <- lmerTest::lmer(CHI_MLU ~ Age*Diagnosis + Socialization1 + vIQ1 + nvIQ1 + (1+VISIT|ID), df, REML = F)
+hyp1_model_max <- lmerTest::lmer(CHI_MLU ~ VISIT*Diagnosis + vIQ1 + nvIQ1 + (1+VISIT|ID), df, REML = F)
 summary(hyp1_model_max)
 
+#Maximum model without nvIQ1 - BEST IN TEST
+hyp1_model_max1 <- lmerTest::lmer(CHI_MLU ~ VISIT*Diagnosis + vIQ1 + (1+VISIT|ID), df, REML = F)
+summary(hyp1_model_max1)
+
 #Basic model
-hyp1_model1 <- lmerTest::lmer(CHI_MLU ~ Age + Diagnosis + (1+VISIT|ID), df, REML = F)
+hyp1_model1 <- lmerTest::lmer(CHI_MLU ~ VISIT + Diagnosis + (1+VISIT|ID), df, REML = F)
 summary(hyp1_model1)
 
 #Expanded model
-hyp1_model2 <- lmerTest::lmer(CHI_MLU ~ Age + Diagnosis + MOT_MLU + (1+VISIT|ID), df, REML = F)
+hyp1_model2 <- lmerTest::lmer(CHI_MLU ~ VISIT + Diagnosis + MOT_MLU + (1+VISIT|ID), df, REML = F)
 
 #Basic model with interaction between diagnosis and age
-hyp1_model3 <- lmerTest::lmer(CHI_MLU ~ Age*Diagnosis + (1+VISIT|ID), df, REML = F)
+hyp1_model3 <- lmerTest::lmer(CHI_MLU ~ VISIT*Diagnosis + (1+VISIT|ID), df, REML = F)
 summary(hyp1_model3)
+
 
 #Looking at effect sizes
 MuMIn::r.squaredGLMM(hyp1_model1) #r2m: 0.30, r2c: 0.73
@@ -170,7 +175,7 @@ plot(colin)
 
 #Making a int model
 fake_model <- lmerTest::lmer(CHI_MLU ~ MOT_MLU + (1|ID), df, REML = F)
-anova(hyp1_model1, hyp1_model2, hyp1_model3, hyp1_model_max)
+anova(hyp1_model1, hyp1_model2, hyp1_model3, hyp1_model_max, hyp1_model_max1)
 ```
 
 How would you evaluate whether the model is a good model?
@@ -184,13 +189,76 @@ Remember: a growth curve model assesses whether changes in time can be described
 First build the different models, then compare them to see which one is better.
 
 ```{r ex2 growth curve, include = FALSE}
+#Making a growth curve model
+growth_model1 <- lmerTest::lmer(CHI_MLU ~ I(VISIT^2)*Diagnosis + vIQ1 + nvIQ1 + (1|ID), df, REML = F)
+summary(growth_model1)
 
+anova(hyp1_model_max, growth_model1, hyp1_model_max1)
 ```
 
 Exciting right? Let's check whether the model is doing an alright job at fitting the data. Plot the actual CHI_MLU data against the predictions of the model fitted(model). 
 
 ```{r}
+#Plotting all the models
+ggplot(df, aes(x = VISIT, y = CHI_MLU, color = as.factor(ID))) + geom_point() + geom_smooth(method = 'lm', se = F)
 
+#PLot for checking residual assumptions
+#plot(lmer(CHI_MLU ~ VISIT*Diagnosis + vIQ1 + (1+VISIT|ID), df, REML = F))
+
+#Build a another dataset in which I'll omit the NAs
+df_nona <- df %>% select(c(ID, CHI_MLU, VISIT, Diagnosis, vIQ1, ))
+
+#Omitting the NAs
+df_nona <- na.omit(df_nona)
+
+#Make a column with the predicted values
+df_nona$fitted_CHI_MLU <- predict(hyp1_model_max1)
+
+#Making a plot showing the fitted values vs the actual values
+ggplot(df_nona, aes(CHI_MLU, fitted_CHI_MLU)) + geom_point() + geom_smooth(method = lm)
+
+```
+
+```{r}
+#Now I want to see the difference between the predicted and the actual values
+df_nona$diff_value <- df_nona$fitted_CHI_MLU - df_nona$CHI_MLU
+
+#And I build a histogram showing if the difference between the actual and the predicted data (stealing Søren's code here)
+
+ggplot(df_nona, aes(x = diff_value)) +
+  geom_vline(
+    data = df_nona,
+    aes(xintercept = mean(diff_value) + 2.56 * sd(diff_value)),
+    colour = "black",
+    linetype = "dotted"
+  ) + #Dotted lines showing the outliers (outside the 2.56 SD)
+  geom_vline(
+    data = df_nona,
+    aes(xintercept = mean(diff_value) - 2.56 * sd(diff_value)),
+    colour = "black",
+    linetype = "dotted"
+  ) +
+  geom_histogram(
+    aes(y = ..density..),
+    color = "darkblue",
+    fill = "lightblue",
+    binwidth = .1
+  ) +
+  stat_function(
+    fun = dnorm,
+    args = list(
+      mean = mean(df_nona$diff_value, na.rm = TRUE),
+      sd = sd(df_nona$diff_value, na.rm = TRUE)
+    ),
+    colour = "black",
+    size = 1
+  ) +
+  labs(title = "Density Plot of Reading Time with Normal Line",
+       y = "Density",
+       x = "Reading Time (sec)") +
+  theme_minimal()
+
+#Interpretation: It seems like the model we made fits the original data very vell, as the difference is quite small and fairly normally distributed.
 ```
 
 Now it's time to report our results.
@@ -207,7 +275,11 @@ Linguistic development of children MLU is affected by ... [COMPLETE]
 ### Hypothesis: Parental MLU changes: i) over time, ii) according to diagnosis
 
 ```{r ex3, include = FALSE}
+parent_model <- lmerTest::lmer(MOT_MLU ~ VISIT*Diagnosis + (1|ID), df, REML = F)
+summary(parent_model)
 
+#According to the summary: i) the predictor diagnosis is significant 0.36, p < .05
+# ii) the mother's MLU was significantly predicted by VISIT B = 0.097, p < .05. However, there was no significant interaction between diagnosis and VISIT. This means that the mother's MLU doesn't change accordingly with the child's MLU, whether the child is TD or has ASD.
 ```
 
 Parent MLU is affected by ... but probably not ...
