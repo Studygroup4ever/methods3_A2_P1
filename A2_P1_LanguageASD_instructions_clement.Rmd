@@ -277,7 +277,7 @@ Linguistic development of children MLU is affected by ... [COMPLETE]
 ```{r ex3, include = FALSE}
 parent_model <- lmerTest::lmer(MOT_MLU ~ VISIT*Diagnosis + (1|ID), df, REML = F)
 summary(parent_model)
-
+ 
 #According to the summary: i) the predictor diagnosis is significant 0.36, p < .05
 # ii) the mother's MLU was significantly predicted by VISIT B = 0.097, p < .05. However, there was no significant interaction between diagnosis and VISIT. This means that the mother's MLU doesn't change accordingly with the child's MLU, whether the child is TD or has ASD.
 ```
@@ -291,7 +291,12 @@ Your task now is to figure out how to best describe the children linguistic traj
 
 
 ```{r ex4, include = FALSE}
+#How many observations are there for the respective groups of children
+only_TD <- filter(df, Diagnosis == "TD")
 
+#TD = 196 obs
+372-192
+#ASD = 180
 ```
 
 In addition to ..., the MLU of the children is also correlated with ...
