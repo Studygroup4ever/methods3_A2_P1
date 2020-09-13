@@ -214,6 +214,10 @@ df_nona <- na.omit(df_nona)
 #Make a column with the predicted values
 df_nona$fitted_CHI_MLU <- predict(hyp1_model_max1)
 
+#Maybe another way of doing it it: with df_nona being the new data
+df_nona$fitted_CHI_MLU2 <- predict(hyp1_model_max1, df_nona)
+
+
 #Making a plot showing the fitted values vs the actual values
 ggplot(df_nona, aes(CHI_MLU, fitted_CHI_MLU)) + geom_point() + geom_smooth(method = lm)
 
