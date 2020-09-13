@@ -76,7 +76,7 @@ Load necessary libraries : what will you need?
 
 ```{r Load Libraries, include = FALSE}
 library(pacman)
-p_load(tidyverse,lmerTest,MuMIn,sjPlot,lme4,reshape2, MuMIn,nlme, broom, ggplot2)
+p_load(tidyverse,MuMIn,sjPlot,lme4,reshape2, MuMIn,nlme, broom, ggplot2)
 ```
 
 ### Define your working directory and load the data
@@ -122,6 +122,10 @@ Mean age: ASD = 33.03903 months and TD = 20.38294 months
 
 The study included 31 children with ASD and 35 children with TD - both groups showing up to approximately 5.6 meetings.
 
+There are 11 girls and 55 boys in the study.
+
+The ethnicity of the children are not balanced...
+
 The sample included mostly young (<20) white males ...
 
 [REPORT THE RESULTS]
@@ -134,157 +138,194 @@ Let's start with a simple mixed effects linear model
 
 Remember to plot the data first and then to run a statistical test.
 - Which variable(s) should be included as fixed factors?
-We include VISIT
 - Which variable(s) should be included as random factors?
 
+```{r}
+# Plotting the data to see what is going on with the different variables
+
+# Child MLU by diagnosis
+ggplot(df, aes(x = Diagnosis, y = CHI_MLU, color = Age)) + 
+  geom_point() +
+  theme_minimal()
+
+# Child MLU by age
+ggplot(df, aes(x = Age, y = CHI_MLU, color = Diagnosis)) +
+  geom_smooth(method = lm) +
+  geom_point() +
+  theme_minimal()
+
+# Child MLU by visit
+ggplot(df, aes(x = VISIT, y = CHI_MLU, color = Diagnosis)) +
+  geom_smooth(method = lm) +
+  geom_point() +
+  theme_minimal()
+
+# Child MLU by socialization
+ggplot(df, aes(x = Socialization, y = CHI_MLU, color = Diagnosis)) + 
+  geom_smooth(method = lm) +
+  geom_point() +
+  theme_minimal()
+
+# Child MLU by mother MLU
+ggplot(df, aes(x = MOT_MLU, y = CHI_MLU, color = Diagnosis)) + 
+  geom_smooth(method = lm) +
+  geom_point() +
+  theme_minimal()
+
+```
+
+In order to avoid collinearity, we constructed a heatmap of the correlations between the variables.
+```{r}
+# Defining the functions needed for the heatmap
+# Use correlation between variables as distance
+reorder_cormat <- function(cormat) {
+  dd <- as.dist((1 - cormat) / 2)
+  hc <- hclust(dd)
+  cormat <- cormat[hc$order, hc$order]
+  }
+
+# Get upper triangle of the correlation matrix
+get_upper_tri <- function(cormat) {
+  cormat[lower.tri(cormat)] <- NA
+  return(cormat)
+  }
+```
+
+```{r}
+# Preparing a dataframe for heatmap without N/A values
+sub_df <- alldata %>% select(-c(ID, ADOS, Socialization, nvIQ, vIQ))
+
+sub_df <- na.omit(sub_df)
+
+sub_df$Diagnosis <- as.factor(sub_df$Diagnosis)
+sub_df$Diagnosis <- as.numeric(sub_df$Diagnosis)
+
+sub_df$Ethnicity <- as.factor(sub_df$Ethnicity)
+sub_df$Ethnicity <- as.numeric(sub_df$Ethnicity)
+
+sub_df$Gender <- as.factor(sub_df$Gender)
+sub_df$Gender <- as.numeric(sub_df$Gender)
+
+```
+
+```{r}
+#Building heatmap of correlations
+cormat <- round(cor(sub_df),2)
+cormat <- reorder_cormat(cormat)
+upper_tri <- get_upper_tri(cormat)
+
+melted_cormat <- melt(upper_tri, na.rm = TRUE)
+
+ggplot(melted_cormat, aes(Var2, Var1, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(
+    low = "blue",
+    high = "red",
+    mid = "white",
+    midpoint = 0,
+    limit = c(-1, 1),
+    space = "Lab",
+    name = "Pearson\nCorrelation"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(
+    angle = 45,
+    vjust = 1,
+    size = 10,
+    hjust = 1
+  )) +
+  coord_fixed() + geom_text(aes(Var2, Var1, label = value),
+                            color = "black",
+                            size = 2) +
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    axis.ticks = element_blank(),
+    legend.justification = c(1, 0),
+    legend.position = c(0.6, 0.7),
+    legend.direction = "horizontal"
+  ) +
+  guides(fill = guide_colorbar(
+    barwidth = 7,
+    barheight = 1,
+    title.position = "top",
+    title.hjust = 0.5
+  ))
+
+```
+
+The correlations in this heatmap are a little different from the true correlations due to NA's omitted.
+
 ```{r ex2, include = FALSE}
-variable.names(alldata)
-
-m <- lmer(CHI_MLU ~ VISIT +
-            Diagnosis +
-            nvIQ +
-            vIQ +
+# Building our first simple mixed effects linear model
+m <- lmer(CHI_MLU ~
+            Diagnosis * VISIT + vIQ1 +
             (1 + VISIT | ID),
-          alldata,
-          REML = F)
-summary(m)
-            
+          alldata, REML = F) 
 
-# model with VISIT*DIAGNOSIS
-m <- lmer(CHI_MLU ~ 
-            VISIT*Diagnosis + 
-            (1+VISIT|ID), 
-          alldata, REML = F)
-summary(m)
-r.squaredGLMM(m) #Marginal: 35,7%, Conditional: 81%
+# We have included the interaction effect to allow the groups ( TD & ASD ) to develop differently over the course of the study (over the course of the visits). We included verbal IQ to improve the amount of variance explained by our model.
+
 ```
 
 How would you evaluate whether the model is a good model?
 
 ```{r ex2 evaluate, include = FALSE}
-# Comparing models with anova with interaction and without
-mx <- lmer(CHI_MLU ~ 
-            VISIT+Diagnosis + 
-            (1+VISIT|ID), 
-          alldata, REML = F)
+# Comparing models using anova - m with interaction and mx without interaction (a bit simpler) to evaluate whether the model is a good model
 
-anova(m,mx) 
+# Building the simpler model
+mx <- lmer(CHI_MLU ~
+             VISIT + Diagnosis + vIQ1 +
+             (1 + VISIT | ID),
+           alldata, REML = F)
+
+# Finding the r^2 values for the two models
+r.squaredGLMM(m) # Marginal: 62.0%, Conditional: 81.1%
+r.squaredGLMM(mx) # Marginal: 51.4%, Conditional: 79.9%
+
+summary(m)
+
+# Comparing the two models using anova
+anova(m,mx)
 ```
 
-Not too good, right? Let's check whether a growth curve model is better.
+The model with the interaction, m, is significantly better than the simpler model and it has a higher marginal and conditional r^2 value of 62.0% and 81.1%, which is a pretty high value for a model in social science.
+
+Let's check whether a growth curve model is better.
 Remember: a growth curve model assesses whether changes in time can be described by linear, or quadratic, or cubic (or... etc.) components.
 First build the different models, then compare them to see which one is better.
 
 ```{r ex2 growth curve, include = FALSE}
-mg <- lmer(CHI_MLU ~ VISIT^2 +
-             Diagnosis + 
-             (1+VISIT|ID),
-           alldata, REML = F)
+# Squaring the visits
+alldata$VISITsq <- alldata$VISIT ^ 2
 
-summary(mg)
+# Didn't converge
+# gcm1 <- lmer(CHI_MLU ~ Diagnosis*VISITsq + (1 + VISITsq|ID), alldata, REML = F) 
 
-# MLU as a function of Visit (diagnosis colored)
-plot <- ggplot(alldata, 
-       aes(
-        y = CHI_MLU, 
-        x = (VISIT^2), 
-        color = Diagnosis),
-        na.rm = TRUE)+
-        geom_point()+
-        geom_smooth(stat = "smooth", position = "identity", method = lm)
+# Didn't converge
+# gcm2 <- lmer(CHI_MLU ~ Diagnosis + VISITsq + vIQ1 + (1 + VISITsq|ID), alldata, REML = F)
 
-plot1 <- ggplot(alldata, 
-       aes(
-        y = CHI_MLU, 
-        x = (VISIT^3), 
-        color = Diagnosis),
-        na.rm = TRUE)+
-        geom_point()+
-        geom_smooth(stat = "smooth", position = "identity", method = lm)
+# Did converge
+gcm3 <-
+  lmer(CHI_MLU ~
+         Diagnosis + VISITsq +
+         (1 + VISITsq | ID),
+       alldata, REML = F)
 
-# First we fit a baseline model in which we include only the intercept.
-intercept <-gls(CHI_MLU ~ 1, 
-                data = alldata, 
-                method = "ML", 
-                na.action = na.exclude)
-# Note that we have asked R to create an object called intercept, and we have specified that Life_Satisfaction is the outcome variable and that it is predicted from only the intercept (the ‘~1’ in the function). The rest of the function specifies the data (data = restructured? Data) and how to estimate the model (method = “ML”). 
+gcm4 <- lmer(CHI_MLU ~
+               VISITsq * Diagnosis + vIQ1 +
+               (1 | ID),
+             alldata, REML = F)
 
-# Next, we need to fit the same model, but this time allowing the intercepts to vary across contexts (in this case we want them to vary across people). As in the previous example, we use the lme() function:
-randomIntercept <-lme(CHI_MLU ~ 1, 
-                      data = alldata,
-                      random = ~1|ID, 
-                      method = "ML",  
-                      na.action = na.exclude, 
-                      control = list(opt="optim"))
+anova(gcm3, gcm4)
 
-# In a growth curve analysis, we are primarily interested in one fixed effect: time. This vari- able in our data set is the index variable (Time), which specifies whether the life satisfaction score was recorded at baseline (0), 6 months (1), 12 months (2) or 18 months (3). We will use the update() function to retain everything from a previous model (including options such as the method, how to deal with missing cases, and the optimiza- tion method) but add things to it (R’s Souls’ Tip 19.3). We can quickly update the previous model (randomIntercept) to include Time as a predictor by executing:
-
-timeRI<-update(randomIntercept, .~. + VISIT)
-timeRI <- update(timeRI, .~. + Diagnosis)
-# This command creates a new object in R called timeRI. The first part of the parenthesis tells R which model to update (in this case we have updated randomIntercept). The remainder tells R how to update this model: .~. simply means ‘keep the previous outcome and all of the previous predictors’ and + Time means ‘add Time as a predictor’. If you want to have a look at the new model you can use summary(timeRI).
-
-# If we want slopes to vary across people as well, then we’re saying that the effect of Time is different in different people. This is a standard growth model scenario: the rate of development or growth over time differs within entities (in this case people, but it could be companies, mice, states, hospitals, schools, geographical areas, etc.). As such, we want to update the random part of the model to be random = ~Time|Person, which means that intercepts and the effect of time (~Time) vary across people (Person). We use the update() function to create a new model (called timeRS) which is identical to the previous model (timeRI) but updates the random part of the model to be random = ~Time|Person:
-timeRS<-update(timeRI, random = ~VISIT|ID)
-
-#We can add a covariance structure to the model using the update() function to create a new model (called ARModel) which is identical to the previous model (timeRS) but adds in a first-order autoregressive covariance structure:
-#ARModel<-update(timeRS, correlation = corAR1(0, form = ~VISIT|ID))
-
-# Fortunately, rather than computing new variables, R can create these new predictors ‘on the fly’. To create the quadratic term we simply specify I(Time^2) as a new predictor. ‘Time^2’ is R’s way of writing ‘time2’ (the ^ means ‘to the power of’); because arith- metic operators such as +, *, - and ^ can be used to define the form of a model (e.g., satisfaction~gender + age + age*gender) we need to enclose ‘Time^2’ within the I() func- tion so that R knows to treat it as an arithmetic operator rather than part of the model specification. The last model we looked at was called ARModel, and included the main effect of Time as a predctor. We can use update() to create a new model (timeQuadratic) that adds the quadratic term to this model:
-
-# Making it numerical
-alldata$VISIT <- as.numeric(alldata$VISIT)
-timeQuadratic<-update(timeRS, .~. + I(VISIT^2))
-summary(timeQuadratic)
-
-# SKRIVER LIGE DEN HER MODEL OP
-# First we fit a baseline model in which we include only the intercept.
-intercept <-gls(CHI_MLU ~ 1, 
-                data = alldata, 
-                method = "ML", 
-                na.action = na.exclude)
-# Next, we need to fit the same model, but this time allowing the intercepts to vary across people
-randomIntercept <-lme(CHI_MLU ~ 1, 
-                      data = alldata,
-                      random = ~1|ID, 
-                      method = "ML",  
-                      na.action = na.exclude, 
-                      control = list(opt="optim"))
-
-# Adding VISIT and VISIT^2
-timeRI<-update(randomIntercept, .~. + VISIT)
-timeRI<-update(timeRI, .~. + I(VISIT^2))
-
-# Adding Diagnosis
-timeRI <- update(timeRI, .~. + Diagnosis)
-
-# Addint random slope
-timeRS<-update(timeRI, random = ~VISIT|ID)
-
-# The final model: CHI_MLU ~ VISIT + I(VISIT^2) + Diagnosis + (1+VISIT|ID)
-summary(timeRS)
-
+r.squaredGLMM(gcm4)
 
 ```
 
 Exciting right? Let's check whether the model is doing an alright job at fitting the data. Plot the actual CHI_MLU data against the predictions of the model fitted(model). 
-
-```{r}
-growth <- lmer(CHI_MLU ~ 
-                 I(VISIT^2)*Diagnosis + 
-                 vIQ1 + 
-                 nvIQ1 + 
-                 (1|ID),
-               df, REML = F) #AIC 588
-summary(growth)
-
-julia <- lmer(CHI_MLU ~ 
-                 Diagnosis*VISIT +
-                 vIQ1 + 
-                 (1+VISIT|ID), 
-              df, REML = F) #AIC 515
-
-anova(growth,julia)
-```
 
 
 ```{r}

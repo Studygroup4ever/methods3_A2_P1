@@ -176,6 +176,7 @@ get_upper_tri <- function(cormat) {
   return(cormat)
 }
 ```
+
 ```{r}
 # Preparing heatmap
 sub_df <- df %>% select(-c(ID, ADOS, Socialization, nvIQ, vIQ))
