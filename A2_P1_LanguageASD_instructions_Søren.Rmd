@@ -155,6 +155,11 @@ ggplot(df, aes(x = MOT_MLU, y = CHI_MLU, color = Diagnosis)) +
   geom_point() +
   theme_minimal()
 
+ggplot(df, aes(x = Age, y = CHI_MLU, color = Diagnosiss)) + 
+  geom_smooth(method = lm) +
+  geom_point() +
+  theme_minimal()
+
 ```
 ```{r}
 # Functions
@@ -237,6 +242,8 @@ ggplot(melted_cormat, aes(Var2, Var1, fill = value)) +
 
 ```
 
+
+
 ```{r ex2}
 m1 <- lmer(CHI_MLU ~ 
              Diagnosis*VISIT + vIQ1 +
@@ -251,6 +258,16 @@ ggplot(df, aes(x = VISIT, y = CHI_MLU, color = as.factor(ID))) + geom_point() + 
 How would you evaluate whether the model is a good model?
 
 ```{r ex2 evaluate, include = FALSE}
+# model as in the paper
+ma <- lmer(CHI_MLU ~ 
+             VISIT + VISITsq + Diagnosis + vIQ1 +
+             (1 + VISIT|ID),
+           df, REML = F)
+
+cor.test(df$VISIT, df$VISITsq, method = 'pearson')
+
+summary(ma)
+
 # First, we inspect whether any assumptions are violated
 plot(fitted(m1),residuals(m1))
 hist(residuals(m1))
@@ -262,11 +279,13 @@ m2 <- lmer(CHI_MLU ~
              (1 + VISIT|ID),
            df, REML = F)
 
+anova(m1, ma)
 anova(m1, m2)
 
 # And, we can find the R-squared of the two models
 r.squaredGLMM(m1)
 r.squaredGLMM(m2)
+r.squaredGLMM(ma)
 ```
 
 
@@ -296,6 +315,8 @@ gcm5 <- lmer(CHI_MLU ~
              (1|ID),
            df, REML = F)
 
+ggplot(df, aes(x = VISITsq, y = CHI_MLU, color = as.factor(ID))) + geom_point() + geom_smooth(method = 'lm', se = F)
+
 summary(gcm1)
 summary(gcm2)
 
@@ -319,8 +340,9 @@ df_nona$pred_CHI_MLU <- predict(m1)
 
 df_nona$diff <- df_nona$fit_CHI_MLU - df_nona$CHI_MLU
 
-ggplot(df_nona, aes(x = CHI_MLU, y = fit_CHI_MLU)) + geom_point() + geom_smooth(method = 'lm')
+result <- lm(CHI_MLU ~ fit_CHI_MLU, df_nona)
 
+ggplot(df_nona, aes(x = CHI_MLU, y = fit_CHI_MLU)) + geom_point() + geom_smooth(method = 'lm')
 
 ggplot(df_nona, aes(x = diff)) +
   geom_vline(
@@ -355,15 +377,61 @@ ggplot(df_nona, aes(x = diff)) +
        x = "Reading Time (sec)") +
   theme_minimal()
 
-
-
-
-
-result <- lm(CHI_MLU ~ fit_CHI_MLU, df_nona)
-
 summary(result)
 
+plot(result)
+
 ```
+
+```{r}
+df_nona$fit_CHI_MLU_gcm <- fitted(gcm1)
+
+df_nona$diff_gcm <- df_nona$fit_CHI_MLU_gcm - df_nona$CHI_MLU
+
+result2 <- lm(CHI_MLU ~ fit_CHI_MLU_gcm, df_nona)
+
+ggplot(df_nona, aes(x = CHI_MLU, y = fit_CHI_MLU_gcm)) + geom_point() + geom_smooth(method = 'lm')
+
+ggplot(df_nona, aes(x = diff_gcm)) +
+  geom_vline(
+    data = df_nona,
+    aes(xintercept = mean(diff_gcm) + 2.56 * sd(diff_gcm)),
+    colour = "black",
+    linetype = "dotted"
+  ) +
+  geom_vline(
+    data = df_nona,
+    aes(xintercept = mean(diff_gcm) - 2.56 * sd(diff_gcm)),
+    colour = "black",
+    linetype = "dotted"
+  ) +
+  geom_histogram(
+    aes(y = ..density..),
+    color = "darkblue",
+    fill = "lightblue",
+    binwidth = .1
+  ) +
+  stat_function(
+    fun = dnorm,
+    args = list(
+      mean = mean(df_nona$diff_gcm, na.rm = TRUE),
+      sd = sd(df_nona$diff_gcm, na.rm = TRUE)
+    ),
+    colour = "black",
+    size = 1
+  ) +
+  labs(title = "Density Plot of Reading Time with Normal Line",
+       y = "Density",
+       x = "Reading Time (sec)") +
+  theme_minimal()
+
+plot(result)
+```
+
+```{r}
+# anova(result, result2)
+```
+
 
 Now it's time to report our results.
 Remember to report:
@@ -379,6 +447,16 @@ Linguistic development of children MLU is affected by ... [COMPLETE]
 ### Hypothesis: Parental MLU changes: i) over time, ii) according to diagnosis
 
 ```{r ex3, include = FALSE}
+# We are using the mothers' MLU's as a proxy for Parental MLU
+
+m1 <- lmer(MOT_CHI ~ 
+             Diagnosis*VISIT + vIQ1 +
+             (1 + VISIT|ID),
+           df, REML = F)
+
+summary(m1)
+
+ggplot(df, aes(x = VISIT, y = CHI_MLU, color = as.factor(ID))) + geom_point() + geom_smooth(method = 'lm', se = F)
 
 ```
 
@@ -391,6 +469,7 @@ Your task now is to figure out how to best describe the children linguistic traj
 
 
 ```{r ex4, include = FALSE}
+
 
 ```
 
