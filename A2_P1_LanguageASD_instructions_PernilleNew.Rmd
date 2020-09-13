@@ -76,7 +76,7 @@ Load necessary libraries : what will you need?
 
 ```{r Load Libraries, include = FALSE}
 library(pacman)
-p_load(tidyverse,lmerTest,MuMIn,sjPlot,lme4,reshape2, MuMIn,nlme)
+p_load(tidyverse,lmerTest,MuMIn,sjPlot,lme4,reshape2, MuMIn,nlme, broom, ggplot2)
 ```
 
 ### Define your working directory and load the data
@@ -94,7 +94,7 @@ alldata <- read_csv("cleanedData.csv")
 
 ### Characterize the participants (Exercise 1)
 
-Identify relevant variables: participants demographic characteristics, diagnosis, ADOS, Verbal IQ, Non Verbal IQ, Socialization, Visit, Number of words used, Number of unique words used, mean length of utterance in both child and parents.
+Identify relevant variables: participants demographic characteristics, diagnosis, ADOS, Verbal IQ (expressive lang raw), Non Verbal (mullenraw) IQ, Socialization, Visit, Number of words used, Number of unique words used, mean length of utterance in both child and parents.
 
 Make sure the variables are in the right format.
 
@@ -120,6 +120,12 @@ We include VISIT
 - Which variable(s) should be included as random factors?
 
 ```{r ex2, include = FALSE}
+variable.names(alldata)
+
+m <- lmer(CHI_MLU ~ VISIT + Diagnosis + nvIQ + vIQ + (1+VISIT|ID), alldata, REML = F)
+summary(m)
+            
+
 # model with VISIT*DIAGNOSIS
 m <- lmer(CHI_MLU ~ 
             VISIT*Diagnosis + 
@@ -239,6 +245,84 @@ summary(timeRS)
 Exciting right? Let's check whether the model is doing an alright job at fitting the data. Plot the actual CHI_MLU data against the predictions of the model fitted(model). 
 
 ```{r}
+growth <- lmer(CHI_MLU ~ 
+                 I(VISIT^2)*Diagnosis + 
+                 vIQ1 + 
+                 nvIQ1 + 
+                 (1|ID),
+               df, REML = F) #AIC 588
+summary(growth)
+
+julia <- lmer(CHI_MLU ~ 
+                 Diagnosis*VISIT +
+                 vIQ1 + 
+                 (1+VISIT|ID), 
+              df, REML = F) #AIC 515
+
+anova(growth,julia)
+```
+
+
+```{r}
+# Plot: Fitted values (predicted by model) against actual values 
+
+# making df with selected variables
+sub_df <- alldata %>% select(c(ID, CHI_MLU, VISIT, vIQ1, Diagnosis))
+
+# omit na's
+sub_df <- na.omit(sub_df)
+
+# check fitted/predict - they do the same
+sub_df$fit_CHI_MLU <- fitted(julia) #same values
+sub_df$pred_CHI_MLU <- predict(julia) #same values
+
+# make model for fun - don't know if this is allowed? lol
+model <- lm(CHI_MLU ~ pred_CHI_MLU, sub_df, REML = F)
+summary(model)
+
+# making a cool plot
+plot <- ggplot(sub_df, aes(x = CHI_MLU, y = pred_CHI_MLU)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  ggtitle("Fitted values (predicted by model) against the actual values") + 
+  ylab("Fitted (predicted) values of CHI_MLU") + 
+  xlab("Actual values of CHI_MLU")
+
+plot
+
+# making a histogram plot over the residuals between predicted and actual
+ggplot(df_nona, aes(x = diff)) +
+  geom_vline(
+    data = df_nona,
+    aes(xintercept = mean(diff) + 2.56 * sd(diff)),
+    colour = "black",
+    linetype = "dotted"
+  ) +
+  geom_vline(
+    data = df_nona,
+    aes(xintercept = mean(diff) - 2.56 * sd(diff)),
+    colour = "black",
+    linetype = "dotted"
+  ) +
+  geom_histogram(
+    aes(y = ..density..),
+    color = "darkblue",
+    fill = "lightblue",
+    binwidth = .1
+  ) +
+  stat_function(
+    fun = dnorm,
+    args = list(
+      mean = mean(df_nona$diff, na.rm = TRUE),
+      sd = sd(df_nona$diff, na.rm = TRUE)
+    ),
+    colour = "black",
+    size = 1
+  ) +
+  labs(title = "",
+       y = "Density",
+       x = "Reading Time (sec)") +
+  theme_minimal()
 
 ```
 
