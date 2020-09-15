@@ -319,9 +319,14 @@ gcm4 <- lmer(CHI_MLU ~
                (1 | ID),
              alldata, REML = F)
 
+# Testing which of our new models is better
 anova(gcm3, gcm4)
 
+# Finding the R^2 of the GCM
 r.squaredGLMM(gcm4)
+
+# Comparing the linear with the GCM
+anova(m, gcm4)
 
 ```
 
@@ -331,40 +336,40 @@ Exciting right? Let's check whether the model is doing an alright job at fitting
 ```{r}
 # Plot: Fitted values (predicted by model) against actual values 
 
-# making df with selected variables
+# Making df with selected variables
 sub_df <- alldata %>% select(c(ID, CHI_MLU, VISIT, vIQ1, Diagnosis))
 
-# omit na's
+# Omit na's
 sub_df <- na.omit(sub_df)
 
-# check fitted/predict - they do the same
-sub_df$fit_CHI_MLU <- fitted(julia) #same values
-sub_df$pred_CHI_MLU <- predict(julia) #same values
+# Predicting the values using the 
+sub_df$pred_CHI_MLU <- predict(m) #same values
 
-# make model for fun - don't know if this is allowed? lol
+# Finding the difference in prediced and observed values
+sub_df$diff <- sub_df$pred_CHI_MLU - sub_df$CHI_MLU
+
+# Make model for fun - don't know if this is allowed? lol
 model <- lm(CHI_MLU ~ pred_CHI_MLU, sub_df, REML = F)
 summary(model)
 
-# making a cool plot
-plot <- ggplot(sub_df, aes(x = CHI_MLU, y = pred_CHI_MLU)) + 
+# Making a cool plot
+ggplot(sub_df, aes(x = CHI_MLU, y = pred_CHI_MLU)) + 
   geom_point() + 
   geom_smooth(method = "lm") + 
   ggtitle("Fitted values (predicted by model) against the actual values") + 
   ylab("Fitted (predicted) values of CHI_MLU") + 
   xlab("Actual values of CHI_MLU")
 
-plot
-
-# making a histogram plot over the residuals between predicted and actual
-ggplot(df_nona, aes(x = diff)) +
+# Making a histogram plot over the residuals between predicted and actual
+ggplot(sub_df, aes(x = diff)) +
   geom_vline(
-    data = df_nona,
+    data = sub_df,
     aes(xintercept = mean(diff) + 2.56 * sd(diff)),
     colour = "black",
     linetype = "dotted"
   ) +
   geom_vline(
-    data = df_nona,
+    data = sub_df,
     aes(xintercept = mean(diff) - 2.56 * sd(diff)),
     colour = "black",
     linetype = "dotted"
@@ -378,8 +383,8 @@ ggplot(df_nona, aes(x = diff)) +
   stat_function(
     fun = dnorm,
     args = list(
-      mean = mean(df_nona$diff, na.rm = TRUE),
-      sd = sd(df_nona$diff, na.rm = TRUE)
+      mean = mean(sub_df$diff, na.rm = TRUE),
+      sd = sd(sub_df$diff, na.rm = TRUE)
     ),
     colour = "black",
     size = 1
@@ -405,14 +410,37 @@ Linguistic development of children MLU is affected by ... [COMPLETE]
 ### Hypothesis: Parental MLU changes: i) over time, ii) according to diagnosis
 
 ```{r ex3, include = FALSE}
-mpl <- lmer(MOT_MLU ~ VISIT+Diagnosis + (1+VISIT|ID), alldata, REML = F)
-mpq <- lmer(MOT_MLU ~ I(VISIT^2)+Diagnosis + (1+VISIT|ID), alldata, REML = F)
-# both significantly described the pattern of the data over time
-class(alldata$VISIT)
-summary(mpl) #VISIT 0.12
-summary(mpq) #VISIT 0.12
+mpl1 <- lmer(MOT_MLU ~ VISIT + Diagnosis + (1 + VISIT|ID), alldata, REML = F)
+#mpl2 <- lmer(MOT_MLU ~ VISIT*Diagnosis + (1+VISIT|ID), alldata, REML = F) # didn't converge
+mpl3 <- lmer(MOT_MLU ~ VISIT + Diagnosis + vIQ1 + (1 + VISIT|ID), alldata, REML = F)
 
-anova(mpl, mpq)
+#mpq1 <- lmer(MOT_MLU ~ VISITsq+Diagnosis + (1+VISITsq|ID), alldata, REML = F) # didn't converge
+mpq2 <- lmer(MOT_MLU ~ VISITsq + Diagnosis + (1|ID), alldata, REML = F)
+mpq3 <- lmer(MOT_MLU ~ VISITsq * Diagnosis + (1|ID), alldata, REML = F)
+mpq4 <- lmer(MOT_MLU ~ VISITsq * Diagnosis + vIQ1 + (1|ID), alldata, REML = F)
+mpq5 <- lmer(MOT_MLU ~ VISITsq + Diagnosis + vIQ1 + (1|ID), alldata, REML = F)
+
+# both significantly described the pattern of the data over time
+summary(mpl1)
+summary(mpq2)
+summary(mpq3) # Interaction not significant
+summary(mpq4) # Interaction not significant
+
+# Testing the models against each other
+anova(mpl1, mpl3)
+
+anova(mpq2, mpq3) # Not significant - use the simpler model
+
+anova(mpq4, mpq2)
+
+anova(mpq4, mpq5) # Not significant - use the simpler model
+
+anova(mpq5, mpl3) # Linear model is better
+
+# Finding R^2 values
+r.squaredGLMM(mpl3)
+r.squaredGLMM(mpq5)
+
 ```
 
 Parent MLU is affected by ... but probably not ...
