@@ -394,6 +394,11 @@ ggplot(sub_df, aes(x = diff)) +
        x = "Reading Time (sec)") +
   theme_minimal()
 
+result <- lm(CHI_MLU ~ pred_CHI_MLU, sub_df)
+
+# Visual inspection of the assumptions
+plot(result)
+
 ```
 
 Now it's time to report our results.
