@@ -1,14 +1,11 @@
 ---
 title: "Assignment 2 - Language Development in ASD - Part 1 - Explaining development"
-author: "[YOUR NAME]"
-date: "[DATE]"
-output: html_document
+author: "Klara, Pernille, Søren, Clement & Julia"
+date: "16/09-2020"
+output:
+  pdf_document: default
+  html_document: default
 ---
-    
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(include = FALSE)
-```
 
 # Assignment 2
 
@@ -74,7 +71,7 @@ Load necessary libraries : what will you need?
 - e.g. mixed effects models
 - e.g. something to plot with
 
-```{r Load Libraries, include = FALSE}
+```{r Load Libraries}
 library(pacman)
 p_load(tidyverse,MuMIn,sjPlot,lme4,reshape2, MuMIn,nlme, broom, ggplot2)
 ```
@@ -88,7 +85,7 @@ If you opened this Rmd file outside of a project, you will need some code to fin
 - Move to that directory (setwd(locpath))
 - Load the data you saved last time (use read_csv(fileName))
 
-```{r Load Data, include = FALSE}
+```{r Load Data}
 alldata <- read_csv("cleanedData.csv")
 ```
 
@@ -100,7 +97,7 @@ Make sure the variables are in the right format.
 
 Describe the characteristics of the two groups of participants and whether the two groups are well matched.
 
-```{r descriptive stats, include = FALSE}
+```{r descriptive stats}
 alldata %>% group_by(Diagnosis) %>% filter(VISIT == 1) %>% summarize(mean(Age, na.rm = T))
 
 alldata %>% filter(VISIT == 1) %>% count(Diagnosis)
@@ -144,30 +141,30 @@ Remember to plot the data first and then to run a statistical test.
 # Plotting the data to see what is going on with the different variables
 
 # Child MLU by diagnosis
-ggplot(df, aes(x = Diagnosis, y = CHI_MLU, color = Age)) + 
+ggplot(alldata, aes(x = Diagnosis, y = CHI_MLU, color = Age)) + 
   geom_point() +
   theme_minimal()
 
 # Child MLU by age
-ggplot(df, aes(x = Age, y = CHI_MLU, color = Diagnosis)) +
+ggplot(alldata, aes(x = Age, y = CHI_MLU, color = Diagnosis)) +
   geom_smooth(method = lm) +
   geom_point() +
   theme_minimal()
 
 # Child MLU by visit
-ggplot(df, aes(x = VISIT, y = CHI_MLU, color = Diagnosis)) +
+ggplot(alldata, aes(x = VISIT, y = CHI_MLU, color = Diagnosis)) +
   geom_smooth(method = lm) +
   geom_point() +
   theme_minimal()
 
 # Child MLU by socialization
-ggplot(df, aes(x = Socialization, y = CHI_MLU, color = Diagnosis)) + 
+ggplot(alldata, aes(x = Socialization, y = CHI_MLU, color = Diagnosis)) + 
   geom_smooth(method = lm) +
   geom_point() +
   theme_minimal()
 
 # Child MLU by mother MLU
-ggplot(df, aes(x = MOT_MLU, y = CHI_MLU, color = Diagnosis)) + 
+ggplot(alldata, aes(x = MOT_MLU, y = CHI_MLU, color = Diagnosis)) + 
   geom_smooth(method = lm) +
   geom_point() +
   theme_minimal()
@@ -259,12 +256,32 @@ ggplot(melted_cormat, aes(Var2, Var1, fill = value)) +
 
 The correlations in this heatmap are a little different from the true correlations due to NA's omitted.
 
+```{r}
+cor.test(alldata$vIQ1, alldata$nvIQ1)
+```
+
+
 ```{r ex2, include = FALSE}
 # Building our first simple mixed effects linear model
+
+# vIQ1 and nvIQ1 are highly correlated - we should not include both of them in the same model
+
 m <- lmer(CHI_MLU ~
             Diagnosis * VISIT + vIQ1 +
             (1 + VISIT | ID),
-          alldata, REML = F) 
+          alldata, REML = F)
+
+m1 <- lmer(CHI_MLU ~
+             Diagnosis * VISIT +
+             (1 + VISIT | ID),
+           alldata, REML = F)
+
+m2 <- lmer(CHI_MLU ~
+             Diagnosis * VISIT + nvIQ1 +
+             (1 + VISIT | ID),
+           alldata, REML = F) 
+
+anova(m, m1, m2)
 
 # We have included the interaction effect to allow the groups ( TD & ASD ) to develop differently over the course of the study (over the course of the visits). We included verbal IQ to improve the amount of variance explained by our model.
 
@@ -389,9 +406,9 @@ ggplot(sub_df, aes(x = diff)) +
     colour = "black",
     size = 1
   ) +
-  labs(title = "",
+  labs(title = "Histogram of Residuals",
        y = "Density",
-       x = "Reading Time (sec)") +
+       x = "Difference between predicted and observed values (MLU)") +
   theme_minimal()
 
 result <- lm(CHI_MLU ~ pred_CHI_MLU, sub_df)
@@ -415,9 +432,12 @@ Linguistic development of children MLU is affected by ... [COMPLETE]
 ### Hypothesis: Parental MLU changes: i) over time, ii) according to diagnosis
 
 ```{r ex3, include = FALSE}
+# Building our models (while increasing the risk of making a Type I Error)
+
 mpl1 <- lmer(MOT_MLU ~ VISIT + Diagnosis + (1 + VISIT|ID), alldata, REML = F)
 #mpl2 <- lmer(MOT_MLU ~ VISIT*Diagnosis + (1+VISIT|ID), alldata, REML = F) # didn't converge
 mpl3 <- lmer(MOT_MLU ~ VISIT + Diagnosis + vIQ1 + (1 + VISIT|ID), alldata, REML = F)
+mpl4 <- lmer(MOT_MLU ~ VISIT*Diagnosis + vIQ1 + (1|ID), alldata, REML = F)
 
 #mpq1 <- lmer(MOT_MLU ~ VISITsq+Diagnosis + (1+VISITsq|ID), alldata, REML = F) # didn't converge
 mpq2 <- lmer(MOT_MLU ~ VISITsq + Diagnosis + (1|ID), alldata, REML = F)
@@ -425,27 +445,21 @@ mpq3 <- lmer(MOT_MLU ~ VISITsq * Diagnosis + (1|ID), alldata, REML = F)
 mpq4 <- lmer(MOT_MLU ~ VISITsq * Diagnosis + vIQ1 + (1|ID), alldata, REML = F)
 mpq5 <- lmer(MOT_MLU ~ VISITsq + Diagnosis + vIQ1 + (1|ID), alldata, REML = F)
 
-# both significantly described the pattern of the data over time
-summary(mpl1)
-summary(mpq2)
 summary(mpq3) # Interaction not significant
 summary(mpq4) # Interaction not significant
+summary(mpl4) # Interaction not significant
 
 # Testing the models against each other
-anova(mpl1, mpl3)
-
-anova(mpq2, mpq3) # Not significant - use the simpler model
-
-anova(mpq4, mpq2)
-
-anova(mpq4, mpq5) # Not significant - use the simpler model
+anova(mpl1, mpl3, mpl4) # mpl3 is better
+anova(mpq2, mpq3, mpq4, mpq5) # mpq5 is better
 
 anova(mpq5, mpl3) # Linear model is better
 
 # Finding R^2 values
 r.squaredGLMM(mpl3)
-r.squaredGLMM(mpq5)
 
+# Summary of the final model
+summary(mpl3)
 ```
 
 Parent MLU is affected by ... but probably not ...
