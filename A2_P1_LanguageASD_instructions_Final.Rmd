@@ -448,9 +448,6 @@ mpq3 <- lmer(MOT_MLU ~ VISITsq * Diagnosis + (1|ID), alldata, REML = F)
 mpq4 <- lmer(MOT_MLU ~ VISITsq * Diagnosis + vIQ1 + (1|ID), alldata, REML = F)
 mpq5 <- lmer(MOT_MLU ~ VISITsq + Diagnosis + vIQ1 + (1|ID), alldata, REML = F)
 
-# both significantly described the pattern of the data over time
-summary(mpl1)
-summary(mpq2)
 summary(mpq3) # Interaction not significant
 summary(mpq4) # Interaction not significant
 summary(mpl4) # Interaction not significant
