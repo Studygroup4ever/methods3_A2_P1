@@ -1,0 +1,82 @@
+---
+title: "k-fold cross validation"
+author: "PernilleB"
+date: "9/15/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r library}
+library(pacman)
+p_load(tidyverse,dplyr,caret, ModelMetrics)
+?rmse
+
+```
+
+
+```{r load data}
+demo_train <- read_csv("/Users/pernillebrams/Desktop/EM3/ExpMeth3Ny/methods3_A1-master/demo_train.csv")
+LU_train <- read_csv("/Users/pernillebrams/Desktop/EM3/ExpMeth3Ny/methods3_A1-master/LU_train.csv")
+token_train <- read_csv("/Users/pernillebrams/Desktop/EM3/ExpMeth3Ny/methods3_A1-master/token_train.csv")
+
+df <- read_csv("CleanedData.csv")
+variable.names(df)
+```
+
+
+```{r creating the folds}
+# Making the folds - parts of the data
+k = 6
+folds = createFolds(unique(df$ID, k = k, list = TRUE, returnTrain = FALSE))
+
+```
+
+```{r}
+trainRMSE = rep(NA, k) #save RMSE for each 6 times we do the cross validation in training set
+testRMSE = rep(NA, k) #save RMSE for each 6 times we do the cross validation in test set
+
+```
+
+
+```{r for loop to train and test the data}
+i = 1 #so that in the beginning we can add it accordingly with each iteration of the loop
+sub_df <- df %>% select(c(ID, types_CHI, VISIT, Diagnosis))
+sub_df <- sub_df %>% na.omit(sub_df)
+
+for (fold in folds){
+  train = subset(sub_df, !(ID %in% fold)) #define train dataset as subset of df that does not include child ID values in this fold. It takes 5/6 of the data that are not in that fold
+  test = subset(sub_df, ID %in% fold) #define test data where the 1/6 of the data that are in that fold
+  model = lmer(types_CHI ~ Diagnosis*VISIT^2 + (1+VISIT^2|ID), train) #Child ID varying pr visit, allow each child to develop in an individual way. Specifying training data
+  test$prediction = predict(model, test, allow.new.levels = TRUE) #we make our predicted values using predict(). Telling the values are from model for the data set called test. We allow new levels
+  train$prediction = fitted(model) #we also need predicted values for our train dataset
+  trainRMSE[i] = rmse(train$types_CHI, fitted(model))#we want to calculate rmse for both train and test dataset. We index i. The function is the difference between actual vocabulary and predicted values
+  testRMSE[i] = rmse(test$types_CHI, test$prediction)
+  i = i+1 #increase i by 1 at the end of the loop
+
+}
+
+```
+
+```{r}
+trainRMSE #Number is for each fold. Basically it is showing that this is how much our model is off the actual data
+# On avg, our predicted values by the model are off from the actual data points by 25, 27.. depending on the fold. OUR MODEL IS 25 ??? OFF THE ACTUAL DATA
+
+testRMSE
+# WE CAN SEE IT IS WAY BIGGER. On avg, our predicted values by the model are off from the actual data points by 95, 87... depending on fold. Quite high number that it is off. Our model is NOT generalizing well. 
+
+```
+
+
+
+
+
+
+
+
+
+
+
