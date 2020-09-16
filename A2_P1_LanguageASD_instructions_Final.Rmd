@@ -453,8 +453,8 @@ summary(mpq4) # Interaction not significant
 summary(mpl4) # Interaction not significant
 
 # Testing the models against each other
-anova(mpl1, mpl3, mpl4)
-anova(mpq2, mpq3, mpq4, mpq5)
+anova(mpl1, mpl3, mpl4) # mpl3 is better
+anova(mpq2, mpq3, mpq4, mpq5) # mpq5 is better
 
 anova(mpq5, mpl3) # Linear model is better
 
