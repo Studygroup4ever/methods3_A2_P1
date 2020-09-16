@@ -259,12 +259,32 @@ ggplot(melted_cormat, aes(Var2, Var1, fill = value)) +
 
 The correlations in this heatmap are a little different from the true correlations due to NA's omitted.
 
+```{r}
+cor.test(alldata$vIQ1, alldata$nvIQ1)
+```
+
+
 ```{r ex2, include = FALSE}
 # Building our first simple mixed effects linear model
+
+# vIQ1 and nvIQ1 are highly correlated - we should not include both of them in the same model
+
 m <- lmer(CHI_MLU ~
             Diagnosis * VISIT + vIQ1 +
             (1 + VISIT | ID),
-          alldata, REML = F) 
+          alldata, REML = F)
+
+m1 <- lmer(CHI_MLU ~
+             Diagnosis * VISIT +
+             (1 + VISIT | ID),
+           alldata, REML = F)
+
+m2 <- lmer(CHI_MLU ~
+             Diagnosis * VISIT + nvIQ1 +
+             (1 + VISIT | ID),
+           alldata, REML = F) 
+
+anova(m, m1, m2)
 
 # We have included the interaction effect to allow the groups ( TD & ASD ) to develop differently over the course of the study (over the course of the visits). We included verbal IQ to improve the amount of variance explained by our model.
 
@@ -415,9 +435,12 @@ Linguistic development of children MLU is affected by ... [COMPLETE]
 ### Hypothesis: Parental MLU changes: i) over time, ii) according to diagnosis
 
 ```{r ex3, include = FALSE}
+# Building our models (while increasing the risk of making a type )
+
 mpl1 <- lmer(MOT_MLU ~ VISIT + Diagnosis + (1 + VISIT|ID), alldata, REML = F)
 #mpl2 <- lmer(MOT_MLU ~ VISIT*Diagnosis + (1+VISIT|ID), alldata, REML = F) # didn't converge
 mpl3 <- lmer(MOT_MLU ~ VISIT + Diagnosis + vIQ1 + (1 + VISIT|ID), alldata, REML = F)
+mpl4 <- lmer(MOT_MLU ~ VISIT*Diagnosis + vIQ1 + (1|ID), alldata, REML = F)
 
 #mpq1 <- lmer(MOT_MLU ~ VISITsq+Diagnosis + (1+VISITsq|ID), alldata, REML = F) # didn't converge
 mpq2 <- lmer(MOT_MLU ~ VISITsq + Diagnosis + (1|ID), alldata, REML = F)
@@ -430,22 +453,19 @@ summary(mpl1)
 summary(mpq2)
 summary(mpq3) # Interaction not significant
 summary(mpq4) # Interaction not significant
+summary(mpl4) # Interaction not significant
 
 # Testing the models against each other
-anova(mpl1, mpl3)
-
-anova(mpq2, mpq3) # Not significant - use the simpler model
-
-anova(mpq4, mpq2)
-
-anova(mpq4, mpq5) # Not significant - use the simpler model
+anova(mpl1, mpl3, mpl4)
+anova(mpq2, mpq3, mpq4, mpq5)
 
 anova(mpq5, mpl3) # Linear model is better
 
 # Finding R^2 values
 r.squaredGLMM(mpl3)
-r.squaredGLMM(mpq5)
 
+# Summary of the final model
+summary(mpl3)
 ```
 
 Parent MLU is affected by ... but probably not ...
