@@ -409,9 +409,9 @@ ggplot(sub_df, aes(x = diff)) +
     colour = "black",
     size = 1
   ) +
-  labs(title = "",
+  labs(title = "Histogram of Residuals",
        y = "Density",
-       x = "Reading Time (sec)") +
+       x = "Difference between predicted and observed values (MLU)") +
   theme_minimal()
 
 result <- lm(CHI_MLU ~ pred_CHI_MLU, sub_df)
