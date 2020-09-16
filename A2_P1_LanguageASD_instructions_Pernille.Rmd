@@ -224,9 +224,12 @@ alldata %>%
 ggplot(alldata, aes(y = CHI_MLU, x = VISIT, color = Diagnosis),na.rm = TRUE)+
   geom_point()+
   geom_smooth(stat = "smooth", position = "identity", method = lm)
+# Vi kan se at autistiske børn udvikler sig langsommere, de har en mere stump slope, hvor TD børn developer hurtigere
+
+
 ```
 
-- Describe how parental use of language (in terms of MLU) changes over time. What do you think is going on? ARTICLE
+- Describe how parental use of language (in terms of MLU) changes over time. What do you think is going on? ARTICLE - reciprocal effects? 
 ```{r}
 # Parental use of language as a function of VISIT
 ggplot(alldata, aes(y = MOT_MLU, x = VISIT),na.rm = TRUE)+
@@ -330,7 +333,7 @@ alldata <- read_csv("cleanedData.csv")
 
 ### Characterize the participants (Exercise 1)
 
-Identify relevant variables: participants demographic characteristics, diagnosis, ADOS, Verbal IQ, Non Verbal IQ, Socialization, Visit, Number of words used, Number of unique words used, mean length of utterance in both child and parents.
+Identify relevant variables: participants demographic characteristics, diagnosis, ADOS, Verbal IQ, Non Verbal IQ, Socialization, Visit, Number of words used (token), Number of unique words used (type), mean length of utterance in both child and parents.
 
 Make sure the variables are in the right format.
 

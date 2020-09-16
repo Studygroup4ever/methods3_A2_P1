@@ -76,7 +76,7 @@ Load necessary libraries : what will you need?
 
 ```{r Load Libraries, include = FALSE}
 library(pacman)
-p_load(tidyverse,lmerTest,MuMIn,sjPlot,lme4,reshape2, MuMIn,nlme, broom, ggplot2)
+p_load(tidyverse,lmerTest,MuMIn,sjPlot,lme4,reshape2, MuMIn,nlme, broom, ggplot2,dplyr)
 ```
 
 ### Define your working directory and load the data
@@ -101,6 +101,16 @@ Make sure the variables are in the right format.
 Describe the characteristics of the two groups of participants and whether the two groups are well matched.
 
 ```{r descriptive stats, include = FALSE}
+# Mean age pr Diagnosis
+alldata %>% group_by(Diagnosis) %>% filter(VISIT==1) %>% summarise(mean(Age, na.rm =T))
+
+# Count gender
+alldata %>% filter(VISIT == 1) %>% count(Gender)
+
+# Count ethnicity
+alldata %>% group_by(Diagnosis) %>% filter(VISIT == 1) %>% count(Ethnicity)
+
+#  
 
 ```
 
@@ -122,7 +132,7 @@ We include VISIT
 ```{r ex2, include = FALSE}
 variable.names(alldata)
 
-m <- lmer(CHI_MLU ~ VISIT + Diagnosis + nvIQ + vIQ + (1+VISIT|ID), alldata, REML = F)
+m <- lmer(CHI_MLU ~ VISIT + Diagnosis + nvIQ + vIQ + (1+VISIT|ID), alldata, REML = F) # max model without interaction
 summary(m)
             
 
@@ -209,8 +219,6 @@ timeRS<-update(timeRI, random = ~VISIT|ID)
 
 # Making it numerical
 alldata$VISIT <- as.numeric(alldata$VISIT)
-timeQuadratic<-update(timeRS, .~. + I(VISIT^2))
-summary(timeQuadratic)
 
 # SKRIVER LIGE DEN HER MODEL OP
 # First we fit a baseline model in which we include only the intercept.
@@ -227,14 +235,17 @@ randomIntercept <-lme(CHI_MLU ~ 1,
                       control = list(opt="optim"))
 
 # Adding VISIT and VISIT^2
-timeRI<-update(randomIntercept, .~. + VISIT)
-timeRI<-update(timeRI, .~. + I(VISIT^2))
+timeRI<-update(randomIntercept, .~. Diagnosis*I(VISIT^2)+VISIT)
 
 # Adding Diagnosis
-timeRI <- update(timeRI, .~. + Diagnosis)
+#timeRI <- update(timeRI, .~. *Diagnosis)
 
-# Addint random slope
-timeRS<-update(timeRI, random = ~VISIT|ID)
+# Adding VISIT
+#timeRI<-update(timeRI, .~. + VISIT)
+
+# Adding random slope
+timeRS <- update(timeRI, random = ~ VISIT | ID)
+
 
 # The final model: CHI_MLU ~ VISIT + I(VISIT^2) + Diagnosis + (1+VISIT|ID)
 summary(timeRS)
@@ -248,18 +259,18 @@ Exciting right? Let's check whether the model is doing an alright job at fitting
 growth <- lmer(CHI_MLU ~ 
                  I(VISIT^2)*Diagnosis + 
                  vIQ1 + 
-                 nvIQ1 + 
-                 (1|ID),
-               df, REML = F) #AIC 588
+                 (1+VISIT^2|ID),
+               df, REML = F) #AIC 569
 summary(growth)
 
-julia <- lmer(CHI_MLU ~ 
-                 Diagnosis*VISIT +
-                 vIQ1 + 
-                 (1+VISIT|ID), 
+julia <- lmer(CHI_MLU ~
+                Diagnosis * VISIT +
+                vIQ1 +
+                (1 + VISIT | ID),
               df, REML = F) #AIC 515
 
 anova(growth,julia)
+
 ```
 
 
@@ -277,8 +288,8 @@ sub_df$fit_CHI_MLU <- fitted(julia) #same values
 sub_df$pred_CHI_MLU <- predict(julia) #same values
 
 # make model for fun - don't know if this is allowed? lol
-model <- lm(CHI_MLU ~ pred_CHI_MLU, sub_df, REML = F)
-summary(model)
+model_j <- lm(CHI_MLU ~ pred_CHI_MLU, sub_df, REML = F)
+summary(model_j)
 
 # making a cool plot
 plot <- ggplot(sub_df, aes(x = CHI_MLU, y = pred_CHI_MLU)) + 
@@ -290,16 +301,19 @@ plot <- ggplot(sub_df, aes(x = CHI_MLU, y = pred_CHI_MLU)) +
 
 plot
 
-# making a histogram plot over the residuals between predicted and actual
-ggplot(df_nona, aes(x = diff)) +
+
+# To make a histogram plot over the residuals between predicted and actual, we need a column with the differences
+sub_df$diff <- sub_df$pred_CHI_MLU - sub_df$CHI_MLU
+  
+ggplot(sub_df, aes(x = diff)) +
   geom_vline(
-    data = df_nona,
+    data = sub_df,
     aes(xintercept = mean(diff) + 2.56 * sd(diff)),
     colour = "black",
     linetype = "dotted"
   ) +
   geom_vline(
-    data = df_nona,
+    data = sub_df,
     aes(xintercept = mean(diff) - 2.56 * sd(diff)),
     colour = "black",
     linetype = "dotted"
@@ -313,16 +327,37 @@ ggplot(df_nona, aes(x = diff)) +
   stat_function(
     fun = dnorm,
     args = list(
-      mean = mean(df_nona$diff, na.rm = TRUE),
-      sd = sd(df_nona$diff, na.rm = TRUE)
+      mean = mean(sub_df$diff, na.rm = TRUE),
+      sd = sd(sub_df$diff, na.rm = TRUE)
     ),
     colour = "black",
     size = 1
   ) +
-  labs(title = "",
+  labs(title = "sørens amazing plot",
        y = "Density",
-       x = "Reading Time (sec)") +
+       x = "something") +
   theme_minimal()
+
+# checking the predicted values by the growth model
+sub_df$pred_CHI_MLU_growth <- predict(growth)
+
+# make model for fun - don't know if this is allowed? lol
+model_g <- lm(CHI_MLU ~ pred_CHI_MLU_growth, sub_df, REML = F)
+summary(model_g)
+
+# making a cool plot
+plot <- ggplot(sub_df, aes(x = CHI_MLU, y = pred_CHI_MLU_growth)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  ggtitle("Fitted values (predicted by model) against the actual values") + 
+  ylab("Fitted (predicted) values of CHI_MLU") + 
+  xlab("Actual values of CHI_MLU")
+
+plot
+
+anova(model_j, model_g)
+AIC(model_j) #270
+AIC(model_g) #445.978
 
 ```
 
