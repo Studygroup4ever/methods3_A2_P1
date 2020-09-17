@@ -104,8 +104,8 @@ alldata %>% filter(VISIT == 1) %>% count(Diagnosis)
 
 alldata %>% count(Diagnosis)
 
-176/31
-196/35
+176 / 31
+196 / 35
 
 alldata %>% filter(VISIT == 1) %>% count(Gender)
 
@@ -190,30 +190,22 @@ get_upper_tri <- function(cormat) {
 
 ```{r}
 # Preparing a dataframe for heatmap without N/A values
-sub_df <- alldata %>% select(-c(ID, ADOS, Socialization, nvIQ, vIQ))
-
-sub_df <- na.omit(sub_df)
-
-sub_df$Diagnosis <- as.factor(sub_df$Diagnosis)
-sub_df$Diagnosis <- as.numeric(sub_df$Diagnosis)
-
-sub_df$Ethnicity <- as.factor(sub_df$Ethnicity)
-sub_df$Ethnicity <- as.numeric(sub_df$Ethnicity)
-
-sub_df$Gender <- as.factor(sub_df$Gender)
-sub_df$Gender <- as.numeric(sub_df$Gender)
+sub_df <- alldata %>% 
+  select(-c(ID, ADOS, Socialization, nvIQ, vIQ)) %>% 
+  na.omit() %>% 
+  mutate(Diagnosis = as.numeric(as.factor(Diagnosis))) %>% 
+  mutate(Ethnicity = as.numeric(as.factor(Ethnicity))) %>% 
+  mutate(Gender = as.numeric(as.factor(Gender)))
 
 ```
 
 ```{r}
 #Building heatmap of correlations
-cormat <- round(cor(sub_df),2)
-cormat <- reorder_cormat(cormat)
-upper_tri <- get_upper_tri(cormat)
-
-melted_cormat <- melt(upper_tri, na.rm = TRUE)
-
-ggplot(melted_cormat, aes(Var2, Var1, fill = value)) +
+heatmap <- round(cor(sub_df),2) %>% 
+  reorder_cormat() %>% 
+  get_upper_tri() %>% 
+  melt(na.rm = T) %>% 
+  ggplot(aes(Var2, Var1, fill = value)) +
   geom_tile(color = "white") +
   scale_fill_gradient2(
     low = "blue",
@@ -252,11 +244,13 @@ ggplot(melted_cormat, aes(Var2, Var1, fill = value)) +
     title.hjust = 0.5
   ))
 
+heatmap
 ```
 
 The correlations in this heatmap are a little different from the true correlations due to NA's omitted.
 
 ```{r}
+# Checking correlations without NAs omitted
 cor.test(alldata$vIQ1, alldata$nvIQ1)
 ```
 
@@ -316,7 +310,8 @@ First build the different models, then compare them to see which one is better.
 
 ```{r ex2 growth curve, include = FALSE}
 # Squaring the visits
-alldata$VISITsq <- alldata$VISIT ^ 2
+alldata <- alldata %>% 
+  mutate(VISITsq = VISIT ^ 2)
 
 # Didn't converge
 # gcm1 <- lmer(CHI_MLU ~ Diagnosis*VISITsq + (1 + VISITsq|ID), alldata, REML = F) 
@@ -354,23 +349,18 @@ Exciting right? Let's check whether the model is doing an alright job at fitting
 # Plot: Fitted values (predicted by model) against actual values 
 
 # Making df with selected variables
-sub_df <- alldata %>% select(c(ID, CHI_MLU, VISIT, vIQ1, Diagnosis))
+sub_df <- alldata %>% 
+  select(c(ID, CHI_MLU, VISIT, vIQ1, Diagnosis)) %>% 
+  na.omit() %>% 
+  mutate(pred_CHI_MLU = predict(m)) %>% 
+  mutate(diff = pred_CHI_MLU - CHI_MLU)
 
-# Omit na's
-sub_df <- na.omit(sub_df)
-
-# Predicting the values using the 
-sub_df$pred_CHI_MLU <- predict(m) #same values
-
-# Finding the difference in prediced and observed values
-sub_df$diff <- sub_df$pred_CHI_MLU - sub_df$CHI_MLU
-
-# Make model for fun - don't know if this is allowed? lol
+# Make model for fun - don't know if this is allowed?
 model <- lm(CHI_MLU ~ pred_CHI_MLU, sub_df, REML = F)
 summary(model)
 
 # Making a cool plot
-ggplot(sub_df, aes(x = CHI_MLU, y = pred_CHI_MLU)) + 
+sub_df %>% ggplot(aes(x = CHI_MLU, y = pred_CHI_MLU)) + 
   geom_point() + 
   geom_smooth(method = "lm") + 
   ggtitle("Fitted values (predicted by model) against the actual values") + 
@@ -378,7 +368,8 @@ ggplot(sub_df, aes(x = CHI_MLU, y = pred_CHI_MLU)) +
   xlab("Actual values of CHI_MLU")
 
 # Making a histogram plot over the residuals between predicted and actual
-ggplot(sub_df, aes(x = diff)) +
+sub_df %>% 
+  ggplot(aes(x = diff)) +
   geom_vline(
     data = sub_df,
     aes(xintercept = mean(diff) + 2.56 * sd(diff)),
@@ -411,10 +402,12 @@ ggplot(sub_df, aes(x = diff)) +
        x = "Difference between predicted and observed values (MLU)") +
   theme_minimal()
 
-result <- lm(CHI_MLU ~ pred_CHI_MLU, sub_df)
-
 # Visual inspection of the assumptions
-plot(result)
+pl <- lm(CHI_MLU ~ pred_CHI_MLU, sub_df) %>% 
+  plot()
+
+pl
+
 
 ```
 
