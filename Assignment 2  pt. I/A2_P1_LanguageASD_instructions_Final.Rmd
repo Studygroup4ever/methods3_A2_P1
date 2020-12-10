@@ -64,6 +64,8 @@ Before we get going, here is a reminder of the issues you will have to discuss i
 
 # Let's go
 
+# This part of the code was written by CP
+
 ### Loading the relevant libraries
 
 Load necessary libraries : what will you need?
@@ -128,6 +130,8 @@ The sample included mostly young (<20) white males ...
 [REPORT THE RESULTS]
 
 ## Let's test hypothesis 1: Children with ASD display a language impairment  (Exercise 2)
+
+# This part of the code was written by KK
 
 ### Hypothesis: The child's MLU changes: i) over time, ii) according to diagnosis
 
@@ -249,6 +253,8 @@ heatmap
 
 The correlations in this heatmap are a little different from the true correlations due to NA's omitted.
 
+# This part of the code was written by JJ
+
 ```{r}
 # Checking correlations without NAs omitted
 cor.test(alldata$vIQ1, alldata$nvIQ1)
@@ -344,6 +350,7 @@ anova(m, gcm4)
 
 Exciting right? Let's check whether the model is doing an alright job at fitting the data. Plot the actual CHI_MLU data against the predictions of the model fitted(model). 
 
+# This part of the code was written by SOH
 
 ```{r}
 # Plot: Fitted values (predicted by model) against actual values 
@@ -420,6 +427,8 @@ Remember to report:
 [REPORT THE RESULTS]
 Linguistic development of children MLU is affected by ... [COMPLETE]
 
+# This part of the code was written by PB
+
 ## Let's test hypothesis 2: Parents speak equally to children with ASD and TD  (Exercise 3)
 
 ### Hypothesis: Parental MLU changes: i) over time, ii) according to diagnosis
@@ -461,11 +470,6 @@ Parent MLU is affected by ... but probably not ...
 ### Adding new variables (Exercise 4)
 
 Your task now is to figure out how to best describe the children linguistic trajectory. The dataset contains a bunch of additional demographic, cognitive and clinical variables (e.g.verbal and non-verbal IQ). Try them out and identify the statistical models that best describes your data (that is, the children's MLU). Describe how you selected the best model and send the code to run the model to Victor and Byurakn.
-
-
-```{r ex4, include = FALSE}
-
-```
 
 In addition to ..., the MLU of the children is also correlated with ...
 Using AIC / nested F-tests as a criterium, we compared models of increasing complexity and found that ...
